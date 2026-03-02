@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const uploadsBase = import.meta.env.VITE_UPLOADS_BASE_URL || "http://localhost:5000";
@@ -6,6 +7,13 @@ const uploadsBase = import.meta.env.VITE_UPLOADS_BASE_URL || "http://localhost:5
 function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (user?.role === "Teacher" && user?.mustResetPassword && location.pathname !== "/teacher-security") {
+      navigate("/teacher-security", { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
 
   const onLogout = () => {
     logout();
@@ -25,6 +33,7 @@ function Layout() {
           <NavLink to="/timetable">Timetable</NavLink>
           {user?.role !== "Teacher" && <NavLink to="/faculty">Faculty</NavLink>}
           {user?.role === "Teacher" && <NavLink to="/my-profile">My Profile</NavLink>}
+          {user?.role === "Teacher" && <NavLink to="/teacher-security">Security</NavLink>}
           {user?.role === "Admin" && <NavLink to="/faculty/new">Add Faculty</NavLink>}
         </nav>
         <div className="user-box">

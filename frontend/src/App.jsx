@@ -10,6 +10,7 @@ import LeavesPage from "./pages/LeavesPage";
 import LoginPage from "./pages/LoginPage";
 import MyProfilePage from "./pages/MyProfilePage";
 import RegisterPage from "./pages/RegisterPage";
+import TeacherSecurityPage from "./pages/TeacherSecurityPage";
 import TimetablePage from "./pages/TimetablePage";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="timetable" element={<TimetablePage />} />
         <Route path="my-profile" element={<MyProfilePage />} />
+        <Route path="teacher-security" element={<TeacherSecurityPage />} />
         <Route path="faculty" element={<FacultyListPage />} />
         <Route path="faculty/new" element={<FacultyFormPage />} />
         <Route path="faculty/:id" element={<FacultyDetailsPage />} />

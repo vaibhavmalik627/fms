@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   experience: "",
   joiningDate: "",
   status: "Active",
+  teacherPassword: "",
 };
 
 function FacultyFormPage() {
@@ -153,6 +154,14 @@ function FacultyFormPage() {
         </select>
         <label>Profile Image</label>
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <label>Teacher Password {isEdit ? "(optional reset)" : "(optional)"}</label>
+        <input
+          type="password"
+          minLength={8}
+          value={form.teacherPassword}
+          onChange={(e) => setForm((p) => ({ ...p, teacherPassword: e.target.value }))}
+          placeholder="At least 8 characters"
+        />
         {error && <p className="error span-2">{error}</p>}
         <div className="span-2 row">
           <button type="submit" disabled={saving}>

@@ -23,9 +23,18 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const teacherLogin = async (email, name) => {
-    const { data } = await api.post("/auth/teacher-login", { email, name });
+  const teacherLogin = async (email, password) => {
+    const { data } = await api.post("/auth/teacher-login", { email, password });
     setAuth(data);
+    return data;
+  };
+
+  const teacherChangePassword = async (oldPassword, newPassword) => {
+    const { data } = await api.post("/auth/teacher-change-password", {
+      oldPassword,
+      newPassword,
+    });
+    setAuth((prev) => (prev ? { ...prev, mustResetPassword: false } : prev));
     return data;
   };
 
@@ -49,11 +58,13 @@ export function AuthProvider({ children }) {
             profileImage: auth.profileImage || null,
             department: auth.department || "",
             subject: auth.subject || "",
+            mustResetPassword: Boolean(auth.mustResetPassword),
           }
         : null,
       isAuthenticated: Boolean(auth?.token),
       login,
       teacherLogin,
+      teacherChangePassword,
       register,
       logout,
     }),

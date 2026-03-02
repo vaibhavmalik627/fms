@@ -7,11 +7,11 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState("user");
-  const [form, setForm] = useState({ email: "", password: "", name: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const target = location.state?.from?.pathname || "/faculty";
+  const target = location.state?.from?.pathname || "/dashboard";
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +19,11 @@ function LoginPage() {
     setLoading(true);
     try {
       if (mode === "teacher") {
-        await teacherLogin(form.email, form.name);
+        const data = await teacherLogin(form.email, form.password);
+        if (data?.mustResetPassword) {
+          navigate("/teacher-security", { replace: true });
+          return;
+        }
       } else {
         await login(form.email, form.password);
       }
@@ -60,11 +64,11 @@ function LoginPage() {
         />
         {mode === "teacher" ? (
           <>
-            <label>Teacher Name</label>
+            <label>Password</label>
             <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               required
             />
           </>

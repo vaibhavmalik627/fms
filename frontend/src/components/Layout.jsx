@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const uploadsBase = import.meta.env.VITE_UPLOADS_BASE_URL || "http://localhost:5000";
+import ProfileAvatar from "./ProfileAvatar";
 
 function Layout() {
   const { user, logout } = useAuth();
@@ -37,15 +36,7 @@ function Layout() {
           {user?.role === "Admin" && <NavLink to="/faculty/new">Add Faculty</NavLink>}
         </nav>
         <div className="user-box">
-          {user?.profileImage ? (
-            <img
-              className="avatar"
-              src={`${uploadsBase}/uploads/${user.profileImage}`}
-              alt={user.name}
-            />
-          ) : (
-            <div className="avatar-placeholder">{user?.name?.slice(0, 1) || "U"}</div>
-          )}
+          <ProfileAvatar name={user?.name} profileImage={user?.profileImage} />
           <div className="user-meta">
             <span>{user?.name}</span>
             <small>{user?.role}</small>

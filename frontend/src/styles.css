@@ -338,6 +338,19 @@ table td:last-child {
   border: 1px solid #e5e7eb;
 }
 
+.details-photo-placeholder {
+  width: 180px;
+  height: 180px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #e5e7eb;
+  color: #111827;
+  display: grid;
+  place-items: center;
+  font-size: 3rem;
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .topbar {
     flex-wrap: wrap;

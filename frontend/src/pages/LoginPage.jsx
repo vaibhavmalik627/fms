@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function LoginPage() {
@@ -45,7 +45,7 @@ function LoginPage() {
             className={mode === "user" ? "mode-btn active" : "mode-btn"}
             onClick={() => setMode("user")}
           >
-            Admin/Viewer
+            Admin
           </button>
           <button
             type="button"
@@ -87,11 +87,7 @@ function LoginPage() {
         <button type="submit" disabled={loading}>
           {loading ? "Signing in..." : "Login"}
         </button>
-        {mode === "user" && (
-          <p className="hint">
-            Need an account? <Link to="/register">Register</Link>
-          </p>
-        )}
+        {mode === "user" && <p className="hint">Admin access is restricted to a fixed account.</p>}
       </form>
     </div>
   );

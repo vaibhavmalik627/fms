@@ -10,12 +10,37 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const auth = localStorage.getItem("fms_auth");
   if (auth) {
-    const { token } = JSON.parse(auth);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const { token } = JSON.parse(auth);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      localStorage.removeItem("fms_auth");
     }
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const requestUrl = String(error?.config?.url || "");
+    const isAuthRequest =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/teacher-login") ||
+      requestUrl.includes("/auth/teacher-change-password");
+
+    if (status === 401 && !isAuthRequest) {
+      localStorage.removeItem("fms_auth");
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export default api;

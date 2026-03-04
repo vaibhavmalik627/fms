@@ -3,21 +3,15 @@ const Faculty = require('../models/Faculty');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || '').toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Vaibhav Malik';
+
 // Register
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-    const user = await User.create({ name, email, password, role });
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id, user.role),
+    return res.status(403).json({
+      message: 'Public registration is disabled. Use the configured admin credentials.',
     });
   } catch (err) {
     next(err);
@@ -28,14 +22,12 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
+    if (String(email || '').toLowerCase() !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+
+    const user = await ensureFixedAdminUser();
+
     res.json({
       _id: user._id,
       name: user.name,
@@ -133,4 +125,32 @@ function generateToken(id, role, kind = 'user') {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function ensureFixedAdminUser() {
+  let user = await User.findOne({ email: ADMIN_EMAIL });
+
+  if (!user) {
+    user = await User.create({
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      role: 'Admin',
+    });
+    return user;
+  }
+
+  const hasPassword = user.password
+    ? await bcrypt.compare(ADMIN_PASSWORD, user.password)
+    : false;
+  const needsUpdate = user.role !== 'Admin' || !hasPassword || user.name !== ADMIN_NAME;
+
+  if (needsUpdate) {
+    user.name = ADMIN_NAME;
+    user.role = 'Admin';
+    user.password = ADMIN_PASSWORD;
+    await user.save();
+  }
+
+  return user;
 }

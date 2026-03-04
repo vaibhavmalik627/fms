@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../api/client";
+import { buildUploadsImageUrl } from "../utils/image";
 
 function FacultyDetailsPage({ facultyId }) {
   const { id } = useParams();
@@ -8,12 +9,14 @@ function FacultyDetailsPage({ facultyId }) {
   const [faculty, setFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     const fetchFaculty = async () => {
       try {
         const { data } = await api.get(`/faculty/${resolvedId}`);
         setFaculty(data);
+        setImageFailed(false);
       } catch (err) {
         setError(err.response?.data?.message || "Unable to load faculty");
       } finally {
@@ -27,9 +30,7 @@ function FacultyDetailsPage({ facultyId }) {
   if (error) return <section className="card error">{error}</section>;
   if (!faculty) return <section className="card">Faculty record not found.</section>;
 
-  const imageUrl = faculty.profileImage
-    ? `${import.meta.env.VITE_UPLOADS_BASE_URL || "http://localhost:5000"}/uploads/${faculty.profileImage}`
-    : null;
+  const imageUrl = buildUploadsImageUrl(faculty.profileImage);
 
   return (
     <section className="card">
@@ -42,9 +43,17 @@ function FacultyDetailsPage({ facultyId }) {
         )}
       </div>
 
-      {imageUrl && (
+      {imageUrl && !imageFailed ? (
         <div className="image-wrap">
-          <img src={imageUrl} alt={faculty.name} />
+          <img
+            src={imageUrl}
+            alt={faculty.name}
+            onError={() => setImageFailed(true)}
+          />
+        </div>
+      ) : (
+        <div className="image-wrap">
+          <div className="details-photo-placeholder">{(faculty.name || "U").slice(0, 1).toUpperCase()}</div>
         </div>
       )}
 

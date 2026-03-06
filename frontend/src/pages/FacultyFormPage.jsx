@@ -15,6 +15,15 @@ const EMPTY_FORM = {
   status: "Active",
   teacherPassword: "",
 };
+const SUBJECT_OPTIONS = [
+  "Computer Networks",
+  "DBMS",
+  "Operating Systems",
+  "Data Structures",
+  "Software Engineering",
+  "Artificial Intelligence",
+  "Web Development",
+];
 
 function FacultyFormPage() {
   const { id } = useParams();
@@ -106,9 +115,16 @@ function FacultyFormPage() {
         <label>Subject</label>
         <input
           required
+          list="faculty-subject-options"
           value={form.subject}
           onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
+          placeholder="Select or type subject"
         />
+        <datalist id="faculty-subject-options">
+          {SUBJECT_OPTIONS.map((subject) => (
+            <option key={subject} value={subject} />
+          ))}
+        </datalist>
         <label>Department</label>
         <input
           required

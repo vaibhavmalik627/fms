@@ -1,11 +1,14 @@
 const Faculty = require('../models/Faculty');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
+const { isCloudinaryEnabled, uploadImageBuffer, deleteCloudinaryAssetByUrl } = require('../utils/cloudinary');
 
 // Create Faculty (Admin only)
 exports.createFaculty = async (req, res, next) => {
   try {
     const { name, subject, department, email, phone, qualification, experience, joiningDate, status, teacherPassword } = req.body;
-    const profileImage = req.file ? req.file.filename : undefined;
+    const profileImage = await resolveProfileImage(req.file);
     const payload = {
       name, subject, department, email, phone, qualification, experience, joiningDate, status, profileImage
     };
@@ -80,8 +83,11 @@ exports.getFacultyById = async (req, res, next) => {
 // Update faculty (Admin only)
 exports.updateFaculty = async (req, res, next) => {
   try {
+    const existing = await Faculty.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Faculty not found' });
+
     const updates = { ...req.body };
-    if (req.file) updates.profileImage = req.file.filename;
+    if (req.file) updates.profileImage = await resolveProfileImage(req.file);
 
     if (updates.teacherPassword) {
       if (String(updates.teacherPassword).length < 8) {
@@ -91,8 +97,13 @@ exports.updateFaculty = async (req, res, next) => {
       updates.mustResetPassword = true;
     }
 
+    const oldProfileImage = existing.profileImage;
     const faculty = await Faculty.findByIdAndUpdate(req.params.id, updates, { new: true });
-    if (!faculty) return res.status(404).json({ message: 'Faculty not found' });
+
+    if (updates.profileImage && oldProfileImage && oldProfileImage !== updates.profileImage) {
+      await cleanupProfileImage(oldProfileImage);
+    }
+
     res.json(faculty);
   } catch (err) {
     next(err);
@@ -104,6 +115,7 @@ exports.deleteFaculty = async (req, res, next) => {
   try {
     const faculty = await Faculty.findByIdAndDelete(req.params.id);
     if (!faculty) return res.status(404).json({ message: 'Faculty not found' });
+    await cleanupProfileImage(faculty.profileImage);
     res.json({ message: 'Faculty deleted' });
   } catch (err) {
     next(err);
@@ -131,3 +143,70 @@ exports.resetTeacherPassword = async (req, res, next) => {
     next(err);
   }
 };
+
+async function resolveProfileImage(file) {
+  if (!file) return undefined;
+
+  if (isCloudinaryEnabled()) {
+    try {
+      const uploaded = await uploadImageBuffer(file.buffer, file.originalname);
+      return uploaded.secure_url;
+    } catch (err) {
+      if (!shouldFallbackToLocalUpload(err)) {
+        throw err;
+      }
+
+      // Cloudinary DNS/network failures should not block faculty creation.
+      return saveLocalProfileImage(file);
+    }
+  }
+
+  if (file.filename) return file.filename;
+  return saveLocalProfileImage(file);
+}
+
+async function cleanupProfileImage(profileImage) {
+  if (!profileImage) return;
+
+  if (/^https?:\/\//i.test(profileImage)) {
+    await deleteCloudinaryAssetByUrl(profileImage);
+    return;
+  }
+
+  const uploadPath = path.join(__dirname, '../uploads', profileImage);
+  if (!fs.existsSync(uploadPath)) return;
+
+  try {
+    fs.unlinkSync(uploadPath);
+  } catch (err) {
+    // Best-effort cleanup; ignore delete failures.
+  }
+}
+
+function shouldFallbackToLocalUpload(err) {
+  if (!err) return false;
+
+  const networkCodes = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ESOCKETTIMEDOUT']);
+  if (networkCodes.has(err.code)) return true;
+
+  const message = String(err.message || '').toLowerCase();
+  return message.includes('getaddrinfo') || message.includes('network');
+}
+
+function saveLocalProfileImage(file) {
+  if (!file || !file.buffer) {
+    throw new Error('Unable to save profile image locally: missing file buffer');
+  }
+
+  const uploadsDir = path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const extension = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+  const localPath = path.join(uploadsDir, filename);
+  fs.writeFileSync(localPath, file.buffer);
+
+  return filename;
+}

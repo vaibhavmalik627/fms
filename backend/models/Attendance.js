@@ -14,6 +14,14 @@ const attendanceSchema = new mongoose.Schema(
       enum: ['Present', 'Absent', 'Leave'],
       required: true,
     },
+    punchInAt: {
+      type: Date,
+      default: null,
+    },
+    punchOutAt: {
+      type: Date,
+      default: null,
+    },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

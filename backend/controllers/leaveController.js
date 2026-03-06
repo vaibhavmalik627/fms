@@ -91,6 +91,8 @@ exports.updateLeaveStatus = async (req, res, next) => {
             facultyId: request.facultyId,
             date: day,
             status: 'Leave',
+            punchInAt: null,
+            punchOutAt: null,
             markedBy: req.user._id,
           },
           upsert: true,

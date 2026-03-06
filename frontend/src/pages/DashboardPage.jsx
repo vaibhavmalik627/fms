@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
+import ProfileAvatar from "../components/ProfileAvatar";
 import { useAuth } from "../context/AuthContext";
-
-const uploadsBase = import.meta.env.VITE_UPLOADS_BASE_URL || "http://localhost:5000";
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -77,15 +76,7 @@ function DashboardPage() {
           <div className="profile-grid">
             {facultyRows.map((item) => (
               <article key={item._id} className="profile-card">
-                {item.profileImage ? (
-                  <img
-                    className="avatar lg"
-                    src={`${uploadsBase}/uploads/${item.profileImage}`}
-                    alt={item.name}
-                  />
-                ) : (
-                  <div className="avatar-placeholder lg">{item.name?.slice(0, 1) || "T"}</div>
-                )}
+                <ProfileAvatar name={item.name} profileImage={item.profileImage} large />
                 <div>
                   <p className="profile-name">{item.name}</p>
                   <p className="hint">{item.subject || "-"}</p>
@@ -100,29 +91,16 @@ function DashboardPage() {
       ) : (
         <section className="card">
           <div className="row between">
-            <h2>{user?.role === "Teacher" ? "My Profile" : "Faculty Snapshot"}</h2>
+            <h2>My Profile</h2>
             {user?.role === "Teacher" && (
               <Link className="btn" to="/my-profile">
                 Open Full Profile
               </Link>
             )}
-            {user?.role === "Viewer" && (
-              <Link className="btn" to="/faculty">
-                Browse Faculty
-              </Link>
-            )}
           </div>
           {facultyRows.map((item) => (
             <article key={item._id} className="profile-card">
-              {item.profileImage ? (
-                <img
-                  className="avatar lg"
-                  src={`${uploadsBase}/uploads/${item.profileImage}`}
-                  alt={item.name}
-                />
-              ) : (
-                <div className="avatar-placeholder lg">{item.name?.slice(0, 1) || "U"}</div>
-              )}
+              <ProfileAvatar name={item.name} profileImage={item.profileImage} large />
               <div>
                 <p className="profile-name">{item.name}</p>
                 <p className="hint">{item.email || "-"}</p>

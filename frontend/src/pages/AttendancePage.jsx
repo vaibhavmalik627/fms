@@ -7,11 +7,11 @@ function AttendancePage() {
   const [faculties, setFaculties] = useState([]);
   const [selectedFacultyId, setSelectedFacultyId] = useState(user?.role === "Teacher" ? user.id : "");
   const [month, setMonth] = useState(getCurrentMonth());
-  const [date, setDate] = useState(getTodayDate());
-  const [status, setStatus] = useState("Present");
   const [records, setRecords] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [todayRows, setTodayRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
   const effectiveFacultyId = user?.role === "Teacher" ? user.id : selectedFacultyId;
@@ -44,36 +44,43 @@ function AttendancePage() {
       } else {
         setSummary(null);
       }
+
+      const todayStatusParams = {};
+      if (user?.role !== "Teacher" && effectiveFacultyId) {
+        todayStatusParams.facultyId = effectiveFacultyId;
+      }
+      const todayStatusRes = await api.get("/attendance/today-status", {
+        params: todayStatusParams,
+      });
+      setTodayRows(todayStatusRes.data?.rows || []);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load attendance");
       setRecords([]);
       setSummary(null);
+      setTodayRows([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!effectiveFacultyId && user?.role !== "Teacher") return;
     fetchData();
   }, [month, effectiveFacultyId]);
 
-  const markAttendance = async (e) => {
-    e.preventDefault();
+  const handlePunch = async (type) => {
     setError("");
-    if (!selectedFacultyId) {
-      setError("Select faculty first");
-      return;
-    }
+    setActionLoading(true);
     try {
-      await api.post("/attendance/mark", {
-        facultyId: selectedFacultyId,
-        date,
-        status,
-      });
+      if (type === "in") {
+        await api.post("/attendance/punch-in", {});
+      } else {
+        await api.post("/attendance/punch-out", {});
+      }
       await fetchData();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to mark attendance");
+      setError(err.response?.data?.message || "Failed to update attendance");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -81,6 +88,8 @@ function AttendancePage() {
     if (user?.role === "Teacher") return "My Attendance";
     return "Attendance Management";
   }, [user]);
+
+  const myToday = todayRows[0] || null;
 
   return (
     <section className="dash-stack">
@@ -103,16 +112,76 @@ function AttendancePage() {
         {error && <p className="error">{error}</p>}
       </div>
 
+      {user?.role === "Teacher" && (
+        <section className="card">
+          <h2>Today Attendance</h2>
+          <div className="row filters">
+            <p>
+              <strong>Status:</strong> {myToday?.isPresent ? "Present" : myToday?.attendanceStatus || "Absent"}
+            </p>
+            <p>
+              <strong>Punch In:</strong> {myToday?.punchInAt ? formatDateTime(myToday.punchInAt) : "-"}
+            </p>
+            <p>
+              <strong>Punch Out:</strong> {myToday?.punchOutAt ? formatDateTime(myToday.punchOutAt) : "-"}
+            </p>
+          </div>
+          <div className="row filters">
+            <button
+              onClick={() => handlePunch("in")}
+              disabled={actionLoading || Boolean(myToday?.punchInAt) || myToday?.attendanceStatus === "Leave"}
+            >
+              {actionLoading ? "Processing..." : "Punch In"}
+            </button>
+            <button
+              onClick={() => handlePunch("out")}
+              disabled={actionLoading || !myToday?.punchInAt || Boolean(myToday?.punchOutAt)}
+            >
+              {actionLoading ? "Processing..." : "Punch Out"}
+            </button>
+          </div>
+        </section>
+      )}
+
       {user?.role === "Admin" && (
-        <form className="card row filters" onSubmit={markAttendance}>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="Present">Present</option>
-            <option value="Absent">Absent</option>
-            <option value="Leave">Leave</option>
-          </select>
-          <button type="submit">Mark Attendance</button>
-        </form>
+        <section className="card">
+          <h2>Today Presence Status</h2>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Faculty</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th>Punch In</th>
+                  <th>Punch Out</th>
+                  <th>Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayRows.map((row) => (
+                  <tr key={row.facultyId}>
+                    <td>{row.name}</td>
+                    <td>{row.department || "-"}</td>
+                    <td>
+                      <span className={row.isPresent ? "status-pill active" : "status-pill leave"}>
+                        {row.isPresent ? "Present" : row.attendanceStatus || "Absent"}
+                      </span>
+                    </td>
+                    <td>{row.punchInAt ? formatDateTime(row.punchInAt) : "-"}</td>
+                    <td>{row.punchOutAt ? formatDateTime(row.punchOutAt) : "-"}</td>
+                    <td>{row.attendanceHours ? `${row.attendanceHours}h` : "-"}</td>
+                  </tr>
+                ))}
+                {todayRows.length === 0 && (
+                  <tr>
+                    <td colSpan="6">No faculty found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {summary && (
@@ -178,8 +247,8 @@ function getCurrentMonth() {
   return `${now.getFullYear()}-${month}`;
 }
 
-function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
+function formatDateTime(value) {
+  return new Date(value).toLocaleString();
 }
 
 export default AttendancePage;

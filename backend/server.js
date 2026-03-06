@@ -25,7 +25,7 @@ const allowedOrigins = [
 
 // Middleware
 app.use(express.json());
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -70,9 +70,19 @@ app.use(require('./middleware/errorMiddleware'));
 const connectDB = require('./config/db');
 connectDB();
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 5000;
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Stop the existing process or change PORT in backend/.env.`);
+    process.exit(1);
+  }
+
+  console.error(`Failed to start server: ${err.message}`);
+  process.exit(1);
 });
 
 function validateEnv() {

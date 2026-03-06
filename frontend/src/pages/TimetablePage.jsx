@@ -3,6 +3,16 @@ import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const SUBJECT_OPTIONS = [
+  "Computer Networks",
+  "DBMS",
+  "Operating Systems",
+  "Data Structures",
+  "Software Engineering",
+  "Artificial Intelligence",
+  "Web Development",
+];
+const CLASSROOM_OPTIONS = ["C-101", "C-102", "C-103", "C-104", "C-105", "C-106", "C-107"];
 
 function TimetablePage() {
   const { user } = useAuth();
@@ -118,16 +128,30 @@ function TimetablePage() {
           </select>
           <label>Subject</label>
           <input
+            list="subject-options"
             value={form.subject}
             onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
+            placeholder="Select or type subject"
             required
           />
+          <datalist id="subject-options">
+            {SUBJECT_OPTIONS.map((subject) => (
+              <option key={subject} value={subject} />
+            ))}
+          </datalist>
           <label>Classroom</label>
           <input
+            list="classroom-options"
             value={form.classroom}
             onChange={(e) => setForm((p) => ({ ...p, classroom: e.target.value }))}
+            placeholder="Choose classroom (C-101 to C-107)"
             required
           />
+          <datalist id="classroom-options">
+            {CLASSROOM_OPTIONS.map((room) => (
+              <option key={room} value={room} />
+            ))}
+          </datalist>
           <label>Day</label>
           <select
             value={form.dayOfWeek}

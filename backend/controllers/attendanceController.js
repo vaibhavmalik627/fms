@@ -1,31 +1,62 @@
 const Attendance = require('../models/Attendance');
 const Faculty = require('../models/Faculty');
 
-exports.markAttendance = async (req, res, next) => {
+exports.punchIn = async (req, res, next) => {
   try {
-    const { facultyId, date, status } = req.body;
-    if (!facultyId || !date || !status) {
-      return res.status(400).json({ message: 'facultyId, date, and status are required' });
-    }
-
+    const facultyId = req.user._id;
     const faculty = await Faculty.findById(facultyId);
     if (!faculty) {
       return res.status(404).json({ message: 'Faculty not found' });
     }
 
-    const normalizedDate = startOfDay(date);
+    const normalizedDate = startOfDay(new Date());
+    const now = new Date();
+
+    const existing = await Attendance.findOne({ facultyId, date: normalizedDate });
+    if (existing?.status === 'Leave') {
+      return res.status(400).json({ message: 'Cannot punch in while on approved leave' });
+    }
+    if (existing?.punchInAt) {
+      return res.status(400).json({ message: 'Already punched in for today' });
+    }
+
     const record = await Attendance.findOneAndUpdate(
       { facultyId, date: normalizedDate },
       {
         facultyId,
         date: normalizedDate,
-        status,
+        status: 'Present',
+        punchInAt: now,
+        punchOutAt: null,
         markedBy: req.user._id,
       },
       { upsert: true, new: true, runValidators: true }
     );
 
     res.status(201).json(record);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.punchOut = async (req, res, next) => {
+  try {
+    const facultyId = req.user._id;
+    const normalizedDate = startOfDay(new Date());
+    const now = new Date();
+
+    const record = await Attendance.findOne({ facultyId, date: normalizedDate });
+    if (!record || !record.punchInAt) {
+      return res.status(400).json({ message: 'Punch in first before punch out' });
+    }
+    if (record.punchOutAt) {
+      return res.status(400).json({ message: 'Already punched out for today' });
+    }
+
+    record.punchOutAt = now;
+    await record.save();
+
+    res.json(record);
   } catch (err) {
     next(err);
   }
@@ -99,6 +130,76 @@ exports.getMonthlySummary = async (req, res, next) => {
   }
 };
 
+exports.getTodayStatus = async (req, res, next) => {
+  try {
+    const today = startOfDay(new Date());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const requestedFacultyId = String(req.query.facultyId || '').trim();
+
+    if (req.user.role === 'Teacher') {
+      const facultyId = req.user._id;
+      const faculty = await Faculty.findById(facultyId).select('name email department subject');
+      if (!faculty) {
+        return res.status(404).json({ message: 'Faculty not found' });
+      }
+
+      const record = await Attendance.findOne({
+        facultyId,
+        date: { $gte: today, $lt: tomorrow },
+      });
+
+      return res.json({
+        rows: [
+          {
+            facultyId,
+            name: faculty.name,
+            email: faculty.email || '',
+            department: faculty.department || '',
+            subject: faculty.subject || '',
+            attendanceStatus: record?.status || 'Absent',
+            isPresent: Boolean(record?.punchInAt),
+            punchInAt: record?.punchInAt || null,
+            punchOutAt: record?.punchOutAt || null,
+            attendanceHours: calculateAttendanceHours(record?.punchInAt, record?.punchOutAt),
+          },
+        ],
+      });
+    }
+
+    const facultyQuery = requestedFacultyId ? { _id: requestedFacultyId } : {};
+    const faculties = await Faculty.find(facultyQuery).select('name email department subject').sort({ name: 1 });
+
+    const facultyIds = faculties.map((f) => f._id);
+    const records = await Attendance.find({
+      facultyId: { $in: facultyIds },
+      date: { $gte: today, $lt: tomorrow },
+    });
+
+    const byFacultyId = new Map(records.map((row) => [String(row.facultyId), row]));
+    const rows = faculties.map((faculty) => {
+      const record = byFacultyId.get(String(faculty._id));
+      return {
+        facultyId: faculty._id,
+        name: faculty.name,
+        email: faculty.email || '',
+        department: faculty.department || '',
+        subject: faculty.subject || '',
+        attendanceStatus: record?.status || 'Absent',
+        isPresent: Boolean(record?.punchInAt),
+        punchInAt: record?.punchInAt || null,
+        punchOutAt: record?.punchOutAt || null,
+        attendanceHours: calculateAttendanceHours(record?.punchInAt, record?.punchOutAt),
+      };
+    });
+
+    res.json({ rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
 function startOfDay(dateInput) {
   const date = new Date(dateInput);
   date.setHours(0, 0, 0, 0);
@@ -112,4 +213,13 @@ function monthRange(month) {
   const start = new Date(year, monthIndex, 1);
   const end = new Date(year, monthIndex + 1, 1);
   return [start, end];
+}
+
+function calculateAttendanceHours(punchInAt, punchOutAt) {
+  if (!punchInAt || !punchOutAt) return 0;
+  const start = new Date(punchInAt).getTime();
+  const end = new Date(punchOutAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  const hours = (end - start) / (1000 * 60 * 60);
+  return Number(hours.toFixed(2));
 }

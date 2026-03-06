@@ -50,7 +50,9 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const logout = () => setAuth(null);
+  const logout = async () => {
+    setAuth(null);
+  };
 
   const value = useMemo(
     () => ({

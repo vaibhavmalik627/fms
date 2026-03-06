@@ -14,8 +14,8 @@ function Layout() {
     }
   }, [user, location.pathname, navigate]);
 
-  const onLogout = () => {
-    logout();
+  const onLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
